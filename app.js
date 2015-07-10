@@ -10,6 +10,9 @@ var LinkedInStrategy = require('passport-linkedin-oauth2').Strategy;
 
 require('dotenv').load();
 
+var db = require('monk')(process.env.MONGOLAB_URI);
+var userCollection = db.get('users');
+
 var routes = require('./routes/index');
 var users = require('./routes/users');
 var authRoutes = require('./routes/auth');
@@ -41,7 +44,8 @@ passport.use(new LinkedInStrategy({
     state: true
   },
   function(accessToken, refreshToken, profile, done) {
-    done(null, {id: profile.id, displayName: profile.displayName, token: accessToken})
+    userCollection.update({email: profile._json.emailAddress}, {$set: {name: profile.displayName, headline: profile._json.headline, about: profile._json.summary}}, {upsert: true})
+    done(null, {id: profile.id, displayName: profile.displayName, token: accessToken}) //this object turns into the req.user object
   }
 ));
 
@@ -54,7 +58,7 @@ passport.deserializeUser(function (user, done) {
 });
 
 app.use(function(req, res, next){
-  res.locals.user = req.user;
+  res.locals.user = req.user;  //passport sets this up
   next();
 });
 
